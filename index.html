@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Sistema de Perguntas e Respostas</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    :root {
+      --azul-fundo: #eaf4ff;
+      --azul-card: #ffffff;
+      --azul-titulo: #0b5ed7;
+      --laranja: #ff8c00;
+      --laranja-hover: #e67600;
+      --texto: #1f2937;
+      --cinza: #6b7280;
+    }
+
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', Tahoma, sans-serif;
+      background: linear-gradient(180deg, #eaf4ff, #dbeafe);
+      color: var(--texto);
+      min-height: 100vh;
+    }
+
+    header {
+      background: linear-gradient(135deg, #60a5fa, #3b82f6);
+      color: white;
+      padding: 28px 20px;
+      text-align: center;
+      box-shadow: 0 6px 25px rgba(0,0,0,0.15);
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: 2rem;
+      letter-spacing: 0.5px;
+    }
+
+    main {
+      max-width: 900px;
+      margin: -40px auto 40px;
+      padding: 20px;
+    }
+
+    .card {
+      background: var(--azul-card);
+      border-radius: 20px;
+      padding: 24px;
+      margin-bottom: 24px;
+      box-shadow: 0 12px 35px rgba(0,0,0,0.12);
+      animation: fadeUp 0.5s ease;
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    h2 {
+      margin-top: 0;
+      color: var(--azul-titulo);
+    }
+
+    label {
+      display: block;
+      margin-bottom: 6px;
+      font-weight: 600;
+    }
+
+    input, textarea {
+      width: 100%;
+      padding: 14px;
+      border-radius: 14px;
+      border: 1px solid #c7d2fe;
+      outline: none;
+      margin-bottom: 14px;
+      font-size: 0.95rem;
+      transition: border 0.2s, box-shadow 0.2s;
+    }
+
+    input:focus, textarea:focus {
+      border-color: #60a5fa;
+      box-shadow: 0 0 0 3px rgba(96,165,250,0.3);
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 90px;
+    }
+
+    button {
+      background: linear-gradient(135deg, var(--laranja), #ffb347);
+      color: white;
+      border: none;
+      border-radius: 16px;
+      padding: 14px 22px;
+      font-size: 1rem;
+      font-weight: bold;
+      cursor: pointer;
+      box-shadow: 0 8px 20px rgba(255,140,0,0.35);
+      transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+    }
+
+    button:hover {
+      background: linear-gradient(135deg, var(--laranja-hover), #ff9f1c);
+      transform: translateY(-1px);
+      box-shadow: 0 12px 28px rgba(255,140,0,0.45);
+    }
+
+    .question {
+      padding: 16px 0;
+      border-bottom: 1px solid #e5e7eb;
+      animation: fadeUp 0.4s ease;
+    }
+
+    .question:last-child {
+      border-bottom: none;
+    }
+
+    .question h3 {
+      margin: 0 0 6px 0;
+      font-size: 1.05rem;
+      color: #2563eb;
+    }
+
+    .question p {
+      margin: 0 0 6px 0;
+      line-height: 1.5;
+    }
+
+    .meta {
+      font-size: 0.75rem;
+      color: var(--cinza);
+    }
+
+    footer {
+      text-align: center;
+      padding: 20px;
+      font-size: 0.75rem;
+      color: var(--cinza);
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>💬 Perguntas & Respostas</h1>
+  </header>
+
+  <main>
+    <div class="card">
+      <h2>Faça sua pergunta</h2>
+      <label>Seu nome</label>
+      <input id="author" placeholder="Digite seu nome" />
+
+      <label>Pergunta</label>
+      <textarea id="question" placeholder="Escreva sua pergunta aqui..."></textarea>
+
+      <button onclick="saveQuestion()">Enviar pergunta</button>
+    </div>
+
+    <div class="card">
+      <h2>Perguntas recentes</h2>
+      <div id="questionsList"></div>
+    </div>
+  </main>
+
+  <footer>
+    Sistema local • Azul claro & laranja • IndexedDB
+  </footer>
+
+  <script>
+    let db;
+
+    const request = indexedDB.open('PerguntasDB', 1);
+
+    request.onupgradeneeded = event => {
+      db = event.target.result;
+      db.createObjectStore('perguntas', { keyPath: 'id', autoIncrement: true });
+    };
+
+    request.onsuccess = event => {
+      db = event.target.result;
+      loadQuestions();
+    };
+
+    function saveQuestion() {
+      const author = authorInput.value.trim();
+      const text = question.value.trim();
+
+      if (!author || !text) {
+        alert('Preencha todos os campos');
+        return;
+      }
+
+      const tx = db.transaction('perguntas', 'readwrite');
+      tx.objectStore('perguntas').add({
+        author,
+        text,
+        date: new Date().toISOString()
+      });
+
+      tx.oncomplete = () => {
+        authorInput.value = '';
+        question.value = '';
+        loadQuestions();
+      };
+    }
+
+    function loadQuestions() {
+      const list = document.getElementById('questionsList');
+      list.innerHTML = '';
+
+      const tx = db.transaction('perguntas', 'readonly');
+      const store = tx.objectStore('perguntas');
+      store.openCursor(null, 'prev').onsuccess = e => {
+        const cursor = e.target.result;
+        if (cursor) {
+          const q = cursor.value;
+          const div = document.createElement('div');
+          div.className = 'question';
+          div.innerHTML = `
+            <h3>${q.author}</h3>
+            <p>${q.text}</p>
+            <div class="meta">${new Date(q.date).toLocaleString()}</div>
+          `;
+          list.appendChild(div);
+          cursor.continue();
+        }
+      };
+    }
+
+    const authorInput = document.getElementById('author');
+    const question = document.getElementById('question');
+  </script>
+</body>
+</html>
